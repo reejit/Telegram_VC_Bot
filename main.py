@@ -36,6 +36,15 @@ blacks = []
 playing = False
 queue = []
 
+
+# Global vars
+s = None  # var for player
+m = None  # var for Track art message
+d = None  # for stopping interruption of current playing song
+current_player = None  # gets current player ID
+is_playing = False  # for restricting users while playing!
+
+
 # Admins list
 
 
