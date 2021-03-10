@@ -416,6 +416,126 @@ async def ytplay(requested_by, query):
     playing = False
 
 
+# Radio---------
+@app.on_message(
+    filters.command(["radio"])
+    & filters.chat(sudo_chat_id)
+    & ~filters.edited
+)
+async def radio(_, message: Message):
+    global blacks, is_playing, current_player, s, m, d
+
+    if message.from_user.id in blacks:
+        await message.reply_text("You're Blacklisted, So Stop Spamming.")
+        return
+    elif is_playing:
+        list_of_admins = await getadmins(message.chat.id)
+        if message.from_user.id in list_of_admins:
+            pass
+        else:
+            d = await message.reply_text(
+                text="stop interrupting while others playing!",
+                disable_notification=True,
+            )
+            await asyncio.sleep(2)  # 2 sec delay before deletion
+            await d.delete()
+            await message.delete()
+            return
+
+    await prepare(s, m, message)
+
+    current_player = message.from_user.id
+    is_playing = True
+    m = await message.reply_text(
+        f"Playing Radio\nRequested by - {message.from_user.mention}"
+    )
+    s = await asyncio.create_subprocess_shell(
+        f"mpv {radio_link} --no-video",
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    await s.wait()
+    await m.delete()
+    is_playing = False
+
+
+# playlist
+@app.on_message(
+    filters.command(["playlist"])
+    & filters.chat(sudo_chat_id)
+    & ~filters.edited
+)
+async def playlist(_, message: Message):
+    global blacks, is_playing, current_player, s, m, d
+
+    if message.from_user.id in blacks:
+        await message.reply_text("You're Blacklisted, So Stop Spamming.")
+        return
+    elif is_playing:
+        list_of_admins = await getadmins(message.chat.id)
+        if message.from_user.id in list_of_admins:
+            pass
+        else:
+            d = await message.reply_text(
+                text="stop interrupting while others playing!",
+                disable_notification=True,
+            )
+            await asyncio.sleep(2)  # 2 sec delay before deletion
+            await d.delete()
+            await message.delete()
+            return
+    elif message.entities[1]["type"] != "url" or len(message.command) != 2:
+        await message.reply_text(
+            "/playlist requires one youtube playlist link"
+        )
+
+    await prepare(s, m, message)
+
+    link = message.command[1]
+    ydl_opts = {"format": "bestaudio"}
+    current_player = message.from_user.id
+    is_playing = True
+
+    m = await message.reply_text("Processing Playlist...")
+    try:
+        with youtube_dl.YoutubeDL():
+            result = youtube_dl.YoutubeDL().extract_info(
+                link, download=False
+            )
+
+            if "entries" in result:
+                video = result["entries"]
+                await m.edit(
+                    f"Found {len(result['entries'])} Videos In Playlist, Playing Them All.\n>>>Requested by {message.from_user.first_name}<<<"
+                )
+                ii = 1
+                for i in video:
+                    video = result["entries"][i]["webpage_url"]
+                    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+                        info_dict = ydl.extract_info(video, download=False)
+                        audio_file = ydl.prepare_filename(info_dict)
+                        ydl.process_info(info_dict)
+                        os.rename(audio_file, "audio.webm")
+                    await m.edit(
+                        f"Playing `{result['entries'][i]['title']}`. \nSong Number `{ii}` In Playlist. \n`{len(result['entries']) - ii}` In Queue. \nRequested by - {message.from_user.mention}"
+                    )
+                    s = await asyncio.create_subprocess_shell(
+                        "mpv audio.webm --no-video",
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE,
+                    )
+                    await s.wait()
+                    ii += 1
+                    os.remove("audio.webm")
+                await s.wait()
+                await m.delete()
+                is_playing = False
+    except Exception as e:
+        await m.edit("Found Literally Nothing, Or YoutubeDl Ded AF")
+        print(str(e))
+        return
+
+
 # Telegram Audio--------------------------------------------------------------------------------
 
 
